@@ -91,7 +91,7 @@ void crc::Reciever(ifstream *file){
 					vector[auxI] = vector[i];
 					vector[i]=aux2;
 					auxB = framesBinary[auxI];
-					framesBinary[auxI] = vector[i];
+					framesBinary[auxI] = framesBinary[i];
 					framesBinary[i]=auxB;
 					
 				}
