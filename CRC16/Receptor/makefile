@@ -1,6 +1,6 @@
 # Variables o Macros
-EXE=main
-OBJS = main.o ../Libreria/crc.o
+EXE=Receptor
+OBJS = Receptor.o ../Libreria/crc.o
 CC=g++
 FLAGS=-Wall -g -std=c++0x
 
@@ -21,5 +21,5 @@ ddd:$(OBJS)
 clean:
 	rm -rf $(OBJS) $(EXE) 
 # Reglas implícitas
-main.o:main.cpp 
+Receptor.o:Receptor.cpp 
 crc.o:../Libreria/crc.cpp

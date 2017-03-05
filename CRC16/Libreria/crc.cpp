@@ -51,6 +51,9 @@ void crc::Transmitter(ifstream *file){
 	}
 	else
 		cout<<"El archivo entrada.txt contiene caracteres invalidos"<<endl;
+		
+		
+		
 }
 
 //Metodo usado para el Receptor
@@ -91,7 +94,7 @@ void crc::Reciever(ifstream *file){
 		}	
 		
 		if(!band)
-			cout<<"Error en las trama"<<endl;
+			cout<<"Se han encontrado errores en las tramas recibidas."<<endl;
 		else{
 			i = 0;
 			
@@ -111,7 +114,7 @@ void crc::Reciever(ifstream *file){
 					band =false;
 			}
 			if(!band)
-				cout<<"Error en las tramas"<<endl;
+				cout<<"Se han encontrado errores en las tramas recibidas."<<endl;
 			else{
 				
 				//En caso de que las tramas lleguen desordenadas,
@@ -220,7 +223,7 @@ binary crc::CRC16(binary frameIn){
 	frame=frameIn+"0000000000000000";
 	
 	for(size_t i=0;i<frame.size()-16;i++){
-		if (frame[i]=='1'){
+		if (frame[i]=='1'){			
 			aux=frame.substr(i,lengthPol);
 			resto="";
 			for (size_t j = 0; j < lengthPol; j++) {
