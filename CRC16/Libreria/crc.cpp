@@ -16,7 +16,9 @@ void crc::Transmitter(ifstream *file){
 	string framesString[this->maxLength/this->maxFrame];
 	binary framesBinary[this->maxLength/this->maxFrame];
 	string message="";
+	bool band = false;
 	
+	ofstream canalcrc("canalcrc.txt");
 	//Se hace la lectura del archivo de entrada
 	if (this->ReadEmisor(&message,file)){
 		
@@ -26,7 +28,6 @@ void crc::Transmitter(ifstream *file){
 			
 			//En caso de que el archivo de entrada este bien
 			//se procede a formatear el archivo de salida (binario)
-			ofstream canalcrc("canalcrc.txt");
 			if(canalcrc.is_open()){
 				
 				//Se hace la division del mensaje original en la 
@@ -47,11 +48,19 @@ void crc::Transmitter(ifstream *file){
 				}
 				canalcrc.close();
 			}
-		}
+		}else
+			band = true;
 	}
 	else
-		cout<<"El archivo entrada.txt contiene caracteres invalidos"<<endl;
+		band = true;
 		
+	if(band){
+		cout<<"Se ha detectado algun error"<<endl;
+		canalcrc<<"Se ha detectado algun error"<<endl;
+	}
+	
+	if(canalcrc.is_open())
+		canalcrc.close();
 		
 		
 }
@@ -64,10 +73,14 @@ void crc::Reciever(ifstream *file){
 	int max = this->maxLength/this->maxFrame;
 	int counterFrame=0,i,auxI,aux2;
 	int vector[max];
+	bool vectorLleno[max]={0};
 	bool band=true, ordenado = true;
 	size_t indexS=0, indexI=0;
 	string mensaje="";
-	binary framesBinary[max],auxB;
+	binary framesBinary[max],auxB,orderedFrames[max];
+	
+	
+	ofstream salidacrc("salidacrc.txt");
 	
 	//Se hace la lectura del canal para validar que sea valido
 	//el contenido
@@ -93,9 +106,7 @@ void crc::Reciever(ifstream *file){
 				band = false;
 		}	
 		
-		if(!band)
-			cout<<"Se han encontrado errores en las tramas recibidas."<<endl;
-		else{
+		if(band){
 			i = 0;
 			
 			//Se procede a quitar los bits de relleno y a verificar que
@@ -106,39 +117,37 @@ void crc::Reciever(ifstream *file){
 				framesBinary[i]= this->RemoveBitsFilling(framesBinary[i]);
 				if(this->CRC16(framesBinary[i]) == "0000000000000000"){
 					vector[i]= bitset<4>(framesBinary[i].substr(1,4)).to_ulong();
-					if(ordenado and i>0 and vector[i]<vector[i-1])
-						ordenado=false;
-					framesBinary[i] = framesBinary[i].substr(5,framesBinary[i].size()-21);
+					
+					auxI = bitset<4>(framesBinary[i].substr(1,4)).to_ulong();
+					
+					if(vectorLleno[auxI]){
+						band = false;
+					}else{
+						vectorLleno[auxI]=true;
+						orderedFrames[auxI]= framesBinary[i].substr(5,framesBinary[i].size()-21);
+					}
 					i++;
 				}else
 					band =false;
 			}
-			if(!band)
-				cout<<"Se han encontrado errores en las tramas recibidas."<<endl;
-			else{
-				
-				//En caso de que las tramas lleguen desordenadas,
-				//se ordenan
-				if(!ordenado){
-					for(i=0;i<counterFrame-1;i++){
-						auxI = i;
-						auxB = framesBinary[i];
-						for(int j=i+1;j<counterFrame;j++)
-							if(vector[auxI]>vector[j])
-								auxI = j;
-								
-						aux2 = vector[auxI];
-						vector[auxI] = vector[i];
-						vector[i]=aux2;
-						auxB = framesBinary[auxI];
-						framesBinary[auxI] = framesBinary[i];
-						framesBinary[i]=auxB;
-						
+			
+			if(band){
+				i=0;
+				auxI=0;
+				while(i<counterFrame && band){
+					if(!vectorLleno[i]){
+						band = false;
 					}
+					else if(orderedFrames[i][0]=='1')
+						auxI++;
+					framesBinary[i]=orderedFrames[i];
+					i++;
 				}
-				ofstream salidacrc("salidacrc.txt");
 				
-				if(salidacrc.is_open()){
+				if(band && auxI != 1)
+					band = false;
+				
+				if( band && salidacrc.is_open()){
 					i=0;
 					//Se pasan de binario a caracteres las tramas,
 					//y se leen hasta encontrar el caracter de
@@ -147,17 +156,25 @@ void crc::Reciever(ifstream *file){
 						for(size_t j=1;j<framesBinary[i].size();j+=8)
 							mensaje += (char)(bitset<8>(framesBinary[i].substr(j,8)).to_ulong());
 						if(framesBinary[i][0] == '1')
-							band = false;
+							i=counterFrame;
 						i++;
 					}
-					cout<<mensaje<<endl;
 					salidacrc<<mensaje<<endl;
 					salidacrc.close();
 				}
 			}
 		}
 	}else
-		cout<<"Archivo vacio"<<endl;
+		band = false;
+		
+	if(!band){
+		cout<<"Se ha detectado algun error"<<endl;
+		salidacrc<<"Se ha detectado algun error"<<endl;
+	}
+	
+	if(salidacrc.is_open())
+		salidacrc.close();
+		
 }
 	
 //Leer canal
@@ -190,8 +207,9 @@ bool crc::ReadEmisor(string *message, ifstream *file){
 			charter = file->get();
 			/*if(charter<32 or charter > 126){
 				error = true;
-				cout<<(int)charter;
-			}*/
+				//cout<<(int)charter;
+			}else
+				*message += charter;*/
 			
 			if(charter>=32 and charter <= 126)
 				*message += charter;
@@ -200,7 +218,7 @@ bool crc::ReadEmisor(string *message, ifstream *file){
 	file->close();
 	message->c_str();
 	
-	return message->size() > 0;
+	return message->size() > 0 and !error;
 }
 
 //Convertir mensaje en binario
